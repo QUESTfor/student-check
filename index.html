@@ -9,7 +9,7 @@
         .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; min-height: 400px; }
         h2 { text-align: center; color: #1a73e8; margin-top: 40px; }
         
-        /* 退出按鈕：固定在右上角，明顯易見 */
+        /* 退出按鈕 */
         #reset-btn { position: absolute; top: 20px; right: 20px; background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; z-index: 100; font-weight: bold; }
         #reset-btn:hover { background: #5a6268; }
 
@@ -29,7 +29,7 @@
         /* 按鈕樣式 */
         .btn { cursor: pointer; padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; margin: 5px; }
         .btn-send { background-color: #1e8e3e; color: white; }
-        .btn-cancel { background-color: #d93025; color: white; }
+        .btn-cancel { background-color: #d93025; color: white; } /* 這裡維持紅色提醒 */
         .btn-join { background-color: #1a73e8; color: white; }
     </style>
 </head>
@@ -70,7 +70,6 @@
 
     let currentUserId = localStorage.getItem('my_student_id');
 
-    // --- 加入教室 ---
     window.joinClass = async function() {
         const name = document.getElementById('student-name').value.trim();
         if (!name) return alert("請輸入姓名！");
@@ -91,7 +90,6 @@
         });
     };
 
-    // --- 更新狀態 ---
     window.updateStatus = function(newStatus) {
         if (!currentUserId) return;
         update(ref(db, 'students/' + currentUserId), {
@@ -99,32 +97,25 @@
         });
     };
 
-    // --- 關鍵功能：徹底刪除此玩家並重置身分 ---
     window.resetMe = function() {
         if (!currentUserId) {
-            // 如果連 ID 都抓不到，直接強制清理並重整
             localStorage.removeItem('my_student_id');
             location.reload();
             return;
         }
 
-        if (confirm("確定要刪除此玩家並重新登入嗎？\n這會將您從列表中移除。")) {
-            // 1. 從 Firebase 移除資料
+        if (confirm("確定要刪除此玩家並重新登入嗎？")) {
             remove(ref(db, 'students/' + currentUserId)).then(() => {
-                // 2. 清除本地緩存
                 localStorage.removeItem('my_student_id');
                 currentUserId = null;
-                // 3. 重新整理
                 location.reload();
-            }).catch(err => {
-                // 如果因為資料已經被刪除而報錯，一樣執行清理
+            }).catch(() => {
                 localStorage.removeItem('my_student_id');
                 location.reload();
             });
         }
     };
 
-    // 監聽資料變動
     onValue(studentsRef, (snapshot) => {
         const data = snapshot.val();
         renderUI(data);
@@ -139,7 +130,6 @@
         const count = students ? Object.keys(students).length : 0;
         document.getElementById('room-status').innerText = `目前進度：${count} / 20 組`;
 
-        // 如果偵測到 currentUserId，就顯示退出按鈕
         if (currentUserId) {
             resetBtn.style.display = 'block';
             loginSection.style.display = 'none';
@@ -164,7 +154,7 @@
                     ${isMe ? `
                         <div style="margin-top:10px">
                             <button onclick="updateStatus('已寄出')" class="btn btn-send">已寄出</button>
-                            <button onclick="updateStatus('取消寄出')" class="btn btn-cancel">取消</button>
+                            <button onclick="updateStatus('尚未寄出')" class="btn btn-cancel">尚未寄出</button>
                         </div>
                     ` : ''}
                 `;
