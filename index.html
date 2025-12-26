@@ -6,20 +6,24 @@
     <title>學生準備狀態確認系統</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background-color: #f0f2f5; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
         h2 { text-align: center; color: #1a73e8; }
         
+        /* 退出按鈕樣式 */
+        #reset-btn { position: absolute; top: 20px; right: 20px; background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: none; font-size: 14px; }
+        #reset-btn:hover { background: #5a6268; }
+
         /* 登入區塊 */
         .login-box { text-align: center; margin-bottom: 30px; padding: 20px; border: 2px dashed #ccc; border-radius: 8px; }
         input[type="text"] { padding: 10px; width: 250px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
         
         /* 狀態卡片網格 */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
-        .card { border: 1px solid #eee; padding: 15px; border-radius: 8px; text-align: center; background: #fff; transition: transform 0.2s; }
-        .card.active { border: 2px solid #1a73e8; box-shadow: 0 2px 8px rgba(26,115,232,0.2); }
+        .card { border: 1px solid #eee; padding: 15px; border-radius: 8px; text-align: center; background: #fff; transition: transform 0.2s; position: relative; }
+        .card.active { border: 2px solid #1a73e8; box-shadow: 0 2px 8px rgba(26,115,232,0.2); background: #f8fbff; }
         .status-tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 14px; margin-top: 10px; }
         .sent { background: #e6f4ea; color: #1e8e3e; font-weight: bold; }
-        .waiting { background: #f1f3f4; color: #70757a; }
+        .waiting { background: #fff3e0; color: #e65100; font-weight: bold; }
 
         /* 按鈕樣式 */
         .btn { cursor: pointer; padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; margin: 5px; transition: 0.3s; }
@@ -33,23 +37,24 @@
 <body>
 
 <div class="container">
-    <h2>🎓 學生準備狀態 (即時同步)</h2>
+    <button id="reset-btn" onclick="resetMe()">退出 / 更換姓名</button>
+    <h2>🎓 學生準備狀態確認表</h2>
 
     <div id="login-section" class="login-box">
-        <input type="text" id="student-name" placeholder="請輸入您的姓名..." maxlength="10">
+        <p>請輸入您的組別或姓名以加入：</p>
+        <input type="text" id="student-name" placeholder="例如：第一組" maxlength="10">
         <button onclick="joinClass()" class="btn btn-join">進入教室</button>
-        <p id="room-status" style="font-size: 14px; color: #666;"></p>
+        <p id="room-status" style="font-size: 13px; color: #888; margin-top: 10px;"></p>
     </div>
 
-    <div id="student-grid" class="grid">
-        </div>
+    <div id="student-grid" class="grid"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // 您的 Firebase 配置 (已套用您提供的資訊)
+    // 您的 Firebase 配置 (保持不變)
     const firebaseConfig = {
         apiKey: "AIzaSyAna6t9OKbPQ96tM6GMsIs0-pwvDOJraFc",
         authDomain: "student-check-system-39d00.firebaseapp.com",
@@ -60,41 +65,35 @@
         appId: "1:282394062920:web:3813e6f315262a0b33287d"
     };
 
-    // 初始化 Firebase 與 資料庫
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const studentsRef = ref(db, 'students/');
 
-    let currentUserId = localStorage.getItem('my_student_id'); // 讀取瀏覽器暫存，實現頁面重新整理不遺失狀態
+    let currentUserId = localStorage.getItem('my_student_id');
 
-    // --- 功能 1：加入教室 ---
+    // --- 功能：加入教室 ---
     window.joinClass = async function() {
         const name = document.getElementById('student-name').value.trim();
-        if (!name) return alert("請輸入姓名！");
+        if (!name) return alert("請輸入姓名或組別！");
 
-        // 檢查人數是否已滿 20 人
         const snapshot = await get(studentsRef);
         const count = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
         
         if (count >= 20 && !currentUserId) {
-            return alert("教室已滿 20 人，無法加入！");
+            return alert("教室已滿 20 人！");
         }
 
-        // 使用姓名作為 ID 並儲存
         currentUserId = name;
         localStorage.setItem('my_student_id', currentUserId);
         
-        // 寫入 Firebase
         update(ref(db, 'students/' + currentUserId), {
             name: name,
-            status: '未寄出',
+            status: '尚未寄出',
             lastActive: Date.now()
         });
-
-        document.getElementById('login-section').style.display = 'none';
     };
 
-    // --- 功能 2：更新狀態 ---
+    // --- 功能：更新狀態 ---
     window.updateStatus = function(newStatus) {
         if (!currentUserId) return;
         update(ref(db, 'students/' + currentUserId), {
@@ -102,48 +101,64 @@
         });
     };
 
-    // --- 功能 3：即時監聽資料變動 (WebSocket) ---
+    // --- 方法二：退出並清除資料 ---
+    window.resetMe = function() {
+        if (confirm("確定要退出嗎？這會從列表中移除您的資料並清除登入紀錄。")) {
+            // 從 Firebase 刪除自己的節點
+            remove(ref(db, 'students/' + currentUserId)).then(() => {
+                localStorage.removeItem('my_student_id');
+                currentUserId = null;
+                location.reload(); // 重新整理頁面
+            });
+        }
+    };
+
+    // 即時監聽
     onValue(studentsRef, (snapshot) => {
         const data = snapshot.val();
         renderUI(data);
     });
 
-    // --- 功能 4：渲染畫面 ---
     function renderUI(students) {
         const grid = document.getElementById('student-grid');
+        const loginSection = document.getElementById('login-section');
+        const resetBtn = document.getElementById('reset-btn');
         grid.innerHTML = '';
         
-        if (!students) return;
+        const count = students ? Object.keys(students).length : 0;
+        document.getElementById('room-status').innerText = `目前進度：${count} / 20 組已上線`;
 
-        // 計算目前人數
-        const studentList = Object.keys(students);
-        document.getElementById('room-status').innerText = `目前人數：${studentList.length} / 20`;
+        if (students) {
+            Object.keys(students).forEach(id => {
+                const info = students[id];
+                const isMe = (id === currentUserId);
+                const isSent = (info.status === '已寄出');
 
-        studentList.forEach(id => {
-            const info = students[id];
-            const isMe = (id === currentUserId);
-            const isSent = (info.status === '已寄出');
+                const card = document.createElement('div');
+                card.className = `card ${isMe ? 'active' : ''}`;
+                card.innerHTML = `
+                    <strong>${info.name} ${isMe ? '(我)' : ''}</strong><br>
+                    <span class="status-tag ${isSent ? 'sent' : 'waiting'}">
+                        ${info.status}
+                    </span>
+                    ${isMe ? `
+                        <div style="margin-top:15px">
+                            <button onclick="updateStatus('已寄出')" class="btn btn-send">已寄出</button>
+                            <button onclick="updateStatus('取消寄出')" class="btn btn-cancel">取消</button>
+                        </div>
+                    ` : ''}
+                `;
+                grid.appendChild(card);
+            });
+        }
 
-            const card = document.createElement('div');
-            card.className = `card ${isMe ? 'active' : ''}`;
-            card.innerHTML = `
-                <strong>${info.name} ${isMe ? '(我)' : ''}</strong><br>
-                <span class="status-tag ${isSent ? 'sent' : 'waiting'}">
-                    ${info.status}
-                </span>
-                ${isMe ? `
-                    <div style="margin-top:15px">
-                        <button onclick="updateStatus('已寄出')" class="btn btn-send">已寄出</button>
-                        <button onclick="updateStatus('取消寄出')" class="btn btn-cancel">取消</button>
-                    </div>
-                ` : ''}
-            `;
-            grid.appendChild(card);
-        });
-
-        // 如果已經登入過，隱藏登入區塊
-        if (currentUserId && students[currentUserId]) {
-            document.getElementById('login-section').style.display = 'none';
+        // 判斷是否已登入來顯示 UI
+        if (currentUserId && students && students[currentUserId]) {
+            loginSection.style.display = 'none';
+            resetBtn.style.display = 'block';
+        } else {
+            loginSection.style.display = 'block';
+            resetBtn.style.display = 'none';
         }
     }
 </script>
