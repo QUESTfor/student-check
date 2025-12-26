@@ -9,9 +9,13 @@
         .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; min-height: 400px; }
         h2 { text-align: center; color: #1a73e8; margin-top: 40px; }
         
-        /* 退出按鈕 */
+        /* 右上角退出按鈕 */
         #reset-btn { position: absolute; top: 20px; right: 20px; background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; z-index: 100; font-weight: bold; }
-        #reset-btn:hover { background: #5a6268; }
+        
+        /* 底部管理員按鈕 */
+        .admin-zone { margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+        .btn-admin { background: none; border: 1px solid #ccc; color: #999; font-size: 12px; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
+        .btn-admin:hover { color: #d93025; border-color: #d93025; }
 
         /* 登入區塊 */
         .login-box { text-align: center; margin-bottom: 30px; padding: 20px; border: 2px dashed #ccc; border-radius: 8px; }
@@ -26,10 +30,9 @@
         .sent { background: #e6f4ea; color: #1e8e3e; font-weight: bold; }
         .waiting { background: #fff3e0; color: #e65100; font-weight: bold; }
 
-        /* 按鈕樣式 */
         .btn { cursor: pointer; padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; margin: 5px; }
         .btn-send { background-color: #1e8e3e; color: white; }
-        .btn-cancel { background-color: #d93025; color: white; } /* 這裡維持紅色提醒 */
+        .btn-cancel { background-color: #d93025; color: white; }
         .btn-join { background-color: #1a73e8; color: white; }
     </style>
 </head>
@@ -48,6 +51,10 @@
     </div>
 
     <div id="student-grid" class="grid"></div>
+
+    <div class="admin-zone">
+        <button onclick="clearAllData()" class="btn-admin">⚠ 清除所有姓名 (管理員專用)</button>
+    </div>
 </div>
 
 <script type="module">
@@ -73,46 +80,43 @@
     window.joinClass = async function() {
         const name = document.getElementById('student-name').value.trim();
         if (!name) return alert("請輸入姓名！");
-
         const snapshot = await get(studentsRef);
         const count = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
-        
-        if (count >= 20 && !currentUserId) {
-            return alert("教室已滿 20 人！");
-        }
-
+        if (count >= 20 && !currentUserId) return alert("教室已滿 20 人！");
         currentUserId = name;
         localStorage.setItem('my_student_id', currentUserId);
-        
-        update(ref(db, 'students/' + currentUserId), {
-            name: name,
-            status: '尚未寄出'
-        });
+        update(ref(db, 'students/' + currentUserId), { name: name, status: '尚未寄出' });
     };
 
     window.updateStatus = function(newStatus) {
         if (!currentUserId) return;
-        update(ref(db, 'students/' + currentUserId), {
-            status: newStatus
-        });
+        update(ref(db, 'students/' + currentUserId), { status: newStatus });
     };
 
     window.resetMe = function() {
-        if (!currentUserId) {
-            localStorage.removeItem('my_student_id');
-            location.reload();
-            return;
-        }
-
+        if (!currentUserId) { localStorage.removeItem('my_student_id'); location.reload(); return; }
         if (confirm("確定要刪除此玩家並重新登入嗎？")) {
             remove(ref(db, 'students/' + currentUserId)).then(() => {
                 localStorage.removeItem('my_student_id');
                 currentUserId = null;
                 location.reload();
-            }).catch(() => {
-                localStorage.removeItem('my_student_id');
-                location.reload();
             });
+        }
+    };
+
+    // --- 管理員功能：清除所有數據 ---
+    window.clearAllData = function() {
+        const password = prompt("請輸入管理員密碼以清空所有數據：");
+        if (password === "admin123") {
+            if (confirm("警告：這將刪除所有組別的資料，確定嗎？")) {
+                remove(ref(db, 'students/')).then(() => {
+                    alert("所有數據已清空！");
+                    localStorage.removeItem('my_student_id');
+                    location.reload();
+                });
+            }
+        } else if (password !== null) {
+            alert("密碼錯誤！");
         }
     };
 
@@ -126,7 +130,6 @@
         const loginSection = document.getElementById('login-section');
         const resetBtn = document.getElementById('reset-btn');
         grid.innerHTML = '';
-        
         const count = students ? Object.keys(students).length : 0;
         document.getElementById('room-status').innerText = `目前進度：${count} / 20 組`;
 
@@ -143,7 +146,6 @@
                 const info = students[id];
                 const isMe = (id === currentUserId);
                 const isSent = (info.status === '已寄出');
-
                 const card = document.createElement('div');
                 card.className = `card ${isMe ? 'active' : ''}`;
                 card.innerHTML = `
