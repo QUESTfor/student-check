@@ -53,6 +53,7 @@
     <div id="student-grid" class="grid"></div>
 
     <div class="admin-zone">
+        <button onclick="resetAllStatus()" class="btn-admin">🔄 重置所有狀態為尚未寄出 (管理員專用)</button>
         <button onclick="clearAllData()" class="btn-admin">⚠ 清除所有姓名 (管理員專用)</button>
     </div>
 </div>
@@ -101,6 +102,29 @@
                 currentUserId = null;
                 location.reload();
             });
+        }
+    };
+
+    // --- 管理員功能：重置所有狀態 ---
+    window.resetAllStatus = async function() {
+        const password = prompt("請輸入管理員密碼以重置所有狀態：");
+        if (password === "admin123") {
+            if (confirm("這將把所有組別的狀態重置為「尚未寄出」，確定嗎？")) {
+                const snapshot = await get(studentsRef);
+                if (snapshot.exists()) {
+                    const students = snapshot.val();
+                    const updates = {};
+                    Object.keys(students).forEach(id => {
+                        updates[`students/${id}/status`] = '尚未寄出';
+                    });
+                    await update(ref(db), updates);
+                    alert("所有狀態已重置為「尚未寄出」！");
+                } else {
+                    alert("目前沒有任何組別資料。");
+                }
+            }
+        } else if (password !== null) {
+            alert("密碼錯誤！");
         }
     };
 
