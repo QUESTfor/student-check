@@ -15,9 +15,26 @@ function App() {
   const initialLoadDone = useRef(false)
 
   useEffect(() => {
+    let timeoutId = null
+
+    // Set a timeout to handle cases where Firebase doesn't respond
+    timeoutId = setTimeout(() => {
+      if (!initialLoadDone.current) {
+        console.error('Firebase connection timeout')
+        setError('連線逾時，請檢查網路連線後重新載入')
+        setLoading(false)
+      }
+    }, 10000) // 10 second timeout
+
     const unsubscribe = onValue(
       studentsRef,
       (snapshot) => {
+        // Clear timeout since we got a response
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+
         const data = snapshot.val()
 
         // Smart merge strategy: preserve existing data during updates
@@ -50,13 +67,24 @@ function App() {
         initialLoadDone.current = true
       },
       (err) => {
+        // Clear timeout since we got a response (even if error)
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+
         console.error('Firebase connection error:', err)
         setError('無法連接到伺服器，請檢查網路連線')
         setLoading(false)
       }
     )
 
-    return () => unsubscribe()
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      unsubscribe()
+    }
   }, [])
 
   const studentCount = Object.keys(students).length
