@@ -20,7 +20,7 @@ export default defineConfig({
       }
     }
   ],
-  base: '/student-check/',
+  base: './',
   server: {
     port: 3000,
     open: true
