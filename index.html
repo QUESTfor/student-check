@@ -4,9 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>學生準備狀態確認系統</title>
+    <style>
+        .loading-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: "Microsoft JhengHei", sans-serif;
+            background: #f0f2f5;
+        }
+        .loading-fallback p { margin: 10px; color: #666; }
+    </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div class="loading-fallback">
+            <p>載入中...</p>
+            <noscript><p>請啟用 JavaScript 以使用此應用程式</p></noscript>
+        </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
