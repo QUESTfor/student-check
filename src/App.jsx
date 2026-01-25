@@ -90,22 +90,27 @@ function App() {
   const studentCount = Object.keys(students).length
 
   const handleJoin = async (name) => {
-    const snapshot = await get(studentsRef)
-    const count = snapshot.exists() ? Object.keys(snapshot.val()).length : 0
+    try {
+      const snapshot = await get(studentsRef)
+      const count = snapshot.exists() ? Object.keys(snapshot.val()).length : 0
 
-    if (count >= 20 && !currentUserId) {
-      alert('教室已滿 20 人！')
-      return
+      if (count >= 20 && !currentUserId) {
+        alert('教室已滿 20 人！')
+        return
+      }
+
+      const userId = name
+      localStorage.setItem('my_student_id', userId)
+      setCurrentUserId(userId)
+
+      await update(ref(db, 'students/' + userId), {
+        name: name,
+        status: '尚未寄出'
+      })
+    } catch (err) {
+      console.error('Join error:', err)
+      alert('無法加入教室，請檢查網路連線後重試')
     }
-
-    const userId = name
-    localStorage.setItem('my_student_id', userId)
-    setCurrentUserId(userId)
-
-    await update(ref(db, 'students/' + userId), {
-      name: name,
-      status: '尚未寄出'
-    })
   }
 
   const handleUpdateStatus = async (newStatus) => {
